@@ -8,7 +8,7 @@ class Routes
   end
 
   def get_distance(*suburbs)
-    return NO_ROUTE unless suburbs
+    return NO_ROUTE if suburbs.empty?
 
     distance = 0
 
