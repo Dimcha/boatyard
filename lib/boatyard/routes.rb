@@ -13,24 +13,14 @@ class Routes
   def get_distance(*suburbs)
     return NO_ROUTE if suburbs.empty?
 
-    distance = 0
+    route = @all_trips.select { |trip| trip.path == suburbs.join }.first
 
-    suburbs.each_with_index do |suburb, i|
-      current_route = @routes.select { |route| route.from == suburb && route.to == suburbs[i+1] }.first
-
-      return NO_ROUTE unless current_route || i == suburbs.size - 1
-
-      distance += current_route.distance if current_route
-    end
-
-    distance
+    route ? route.distance : NO_ROUTE
   end
 
   def trips_with_max_stops(from, to, max_stops = 10)
-    puts @all_trips.inspect
-
     @all_trips.select do |trip|
-      trip.path.start_with?(from) && trip.path.end_with?(to) && trip.stops < max_stops + 1
+      trip.path.start_with?(from) && trip.path.end_with?(to) && trip.stops <= max_stops
     end.size
   end
 
@@ -44,27 +34,31 @@ class Routes
       stops = 1
       route.visited = true
 
-      @all_trips << Trip.new(path, distance, stops)
+      add_trip(Trip.new(path.dup, distance, stops))
 
       # all other trips
-      find_other_trips(route, path, distance, stops)
+      find_other_trips(route, path.dup, distance, stops)
       route.visited = false
     end
   end
 
   def find_other_trips(old_route, path, distance, stops)
     old_route.connected_routes(@routes).each do |route|
-      next if route.visited
-
       path << route.to
       distance += route.distance
       stops += 1
       route.visited = true
 
-      @all_trips << Trip.new(path, distance, stops)
+      add_trip(Trip.new(path.dup, distance, stops))
 
-      find_other_trips(route, path, distance, stops)
+      find_other_trips(route, path.dup, distance, stops)
       route.visited = false
     end
+  end
+
+  def add_trip(trip)
+    return unless @all_trips.select { |t| t.path == trip.path }.empty?
+
+    @all_trips << trip
   end
 end

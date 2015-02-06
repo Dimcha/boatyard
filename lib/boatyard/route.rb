@@ -1,6 +1,6 @@
 class Route
-  attr_reader :from, :to, :distance, :visited
-  attr_writer :visited
+  attr_reader :from, :to, :distance
+  attr_accessor :visited
 
   def initialize(from, to, distance = 0)
     @from = from
