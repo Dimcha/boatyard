@@ -24,34 +24,54 @@ class Routes
     end.size
   end
 
+  def trips_with_stops(from, to, stops = 0)
+    @all_trips.select do |trip|
+      trip.path.start_with?(from) && trip.path.end_with?(to) && trip.stops == stops
+    end.size
+  end
+
+  def distance_of_shortest_route(from, to)
+    trips = @all_trips.select do |trip|
+      trip.path.start_with?(from) && trip.path.end_with?(to)
+    end
+
+    trips ? trips.map(&:distance).min : NO_ROUTE
+  end
+
+  def trips_with_less_distance(from, to, distance = 0)
+    trips = @all_trips.select do |trip|
+      trip.path.start_with?(from) && trip.path.end_with?(to) && trip.distance < distance
+    end.size
+  end
+
   private
 
   def find_all_trips
     @routes.each do |route|
       # direct trips
-      path = route.from + route.to
-      distance = route.distance
+      new_path = route.from + route.to
+      new_distance = route.distance
       stops = 1
       route.visited = true
 
-      add_trip(Trip.new(path.dup, distance, stops))
+      add_trip(Trip.new(new_path, new_distance, stops))
 
       # all other trips
-      find_other_trips(route, path.dup, distance, stops)
+      find_other_trips(route, new_path, new_distance, stops)
       route.visited = false
     end
   end
 
   def find_other_trips(old_route, path, distance, stops)
     old_route.connected_routes(@routes).each do |route|
-      path << route.to
-      distance += route.distance
+      new_path = path + route.to
+      new_distance = distance + route.distance
       stops += 1
       route.visited = true
 
-      add_trip(Trip.new(path.dup, distance, stops))
+      add_trip(Trip.new(new_path, new_distance, stops))
 
-      find_other_trips(route, path.dup, distance, stops)
+      find_other_trips(route, new_path, new_distance, stops)
       route.visited = false
     end
   end
