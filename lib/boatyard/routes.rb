@@ -19,15 +19,19 @@ class Routes
   end
 
   def trips_with_max_stops(from, to, max_stops = 10)
-    @all_trips.select do |trip|
+    trips = @all_trips.select do |trip|
       trip.path.start_with?(from) && trip.path.end_with?(to) && trip.stops <= max_stops
-    end.size
+    end
+
+    trips.size + same_route_multipe_times(trips, 0, max_stops).size
   end
 
   def trips_with_stops(from, to, stops = 0)
-    @all_trips.select do |trip|
+    trips = @all_trips.select do |trip|
       trip.path.start_with?(from) && trip.path.end_with?(to) && trip.stops == stops
-    end.size
+    end
+
+    trips.size + same_route_multipe_times(trips, 0, stops).select { |trip| trip.stops == stops }.size
   end
 
   def distance_of_shortest_route(from, to)
@@ -41,7 +45,9 @@ class Routes
   def trips_with_less_distance(from, to, distance = 0)
     trips = @all_trips.select do |trip|
       trip.path.start_with?(from) && trip.path.end_with?(to) && trip.distance < distance
-    end.size
+    end
+
+    trips.size + same_route_multipe_times(trips, distance).size
   end
 
   private
@@ -49,9 +55,9 @@ class Routes
   def find_all_trips
     @routes.each do |route|
       # direct trips
-      new_path = route.from + route.to
-      new_distance = route.distance
-      stops = 1
+      new_path      = route.from + route.to
+      new_distance  = route.distance
+      stops         = 1
       route.visited = true
 
       add_trip(Trip.new(new_path, new_distance, stops))
@@ -64,14 +70,14 @@ class Routes
 
   def find_other_trips(old_route, path, distance, stops)
     old_route.connected_routes(@routes).each do |route|
-      new_path = path + route.to
-      new_distance = distance + route.distance
-      stops += 1
+      new_path      = path + route.to
+      new_distance  = distance + route.distance
+      new_stops     = stops + 1
       route.visited = true
 
-      add_trip(Trip.new(new_path, new_distance, stops))
+      add_trip(Trip.new(new_path, new_distance, new_stops))
 
-      find_other_trips(route, new_path, new_distance, stops)
+      find_other_trips(route, new_path, new_distance, new_stops)
       route.visited = false
     end
   end
@@ -80,5 +86,48 @@ class Routes
     return unless @all_trips.select { |t| t.path == trip.path }.empty?
 
     @all_trips << trip
+  end
+
+  def round_trips
+    @all_trips.select { |trip| trip.path.end_with?(trip.path[0]) }
+  end
+
+  def same_route_multipe_times(trips, max_distance = 0, max_stops = 0)
+    valid_trips = []
+
+    trips.each do |trip|
+      next unless trip.distance < max_distance || trip.stops < max_stops
+
+      round_trips.each do |sub_trip|
+        valid_trips += do_round_trip(trip, sub_trip, max_distance, max_stops)
+      end
+    end
+
+    valid_trips
+  end
+
+  def do_round_trip(trip, sub_trip, max_distance, max_stops)
+    return [] unless valid_round_trip(trip, sub_trip, max_distance, max_stops)
+
+    valid_trips = []
+    new_path = trip.path.sub(sub_trip.path, sub_trip.path + sub_trip.path)
+    new_trip = Trip.new(new_path, count_distance(trip, sub_trip), count_stops(trip, sub_trip))
+
+    valid_trips += [new_trip] if new_trip
+    valid_trips += do_round_trip(new_trip, sub_trip, max_distance, max_stops)
+
+    valid_trips
+  end
+
+  def count_stops(trip, sub_trip)
+    trip.stops + sub_trip.stops
+  end
+
+  def count_distance(trip, sub_trip)
+    trip.distance + sub_trip.distance
+  end
+
+  def valid_round_trip(trip, sub_trip, max_distance, max_stops)
+    trip.path.include?(sub_trip.path) && (count_stops(trip, sub_trip) < max_stops || count_distance(trip, sub_trip) < max_distance)
   end
 end
