@@ -28,10 +28,10 @@ class Routes
 
   def trips_with_stops(from, to, stops = 0)
     trips = @all_trips.select do |trip|
-      trip.path.start_with?(from) && trip.path.end_with?(to) && trip.stops == stops
+      trip.path.start_with?(from) && trip.path.end_with?(to)
     end
 
-    trips.size + same_route_multipe_times(trips, 0, stops).select { |trip| trip.stops == stops }.size
+    (trips + same_route_multipe_times(trips, 0, stops)).select { |trip| trip.stops == stops }.size
   end
 
   def distance_of_shortest_route(from, to)
@@ -93,34 +93,31 @@ class Routes
   end
 
   def same_route_multipe_times(trips, max_distance = 0, max_stops = 0)
-    valid_trips = []
+    @valid_trips = []
 
     trips.each do |trip|
       next unless trip.distance < max_distance || trip.stops < max_stops
 
       round_trips.each do |sub_trip|
-        valid_trips += do_round_trip(trip, sub_trip, max_distance, max_stops)
+        do_round_trip(trip, sub_trip, max_distance, max_stops)
       end
     end
 
-    valid_trips
+    @valid_trips
   end
 
   def do_round_trip(trip, sub_trip, max_distance, max_stops)
     return [] unless valid_round_trip(trip, sub_trip, max_distance, max_stops)
 
-    valid_trips = []
-    new_path = trip.path.sub(sub_trip.path, sub_trip.path + sub_trip.path)
-    new_trip = Trip.new(new_path, count_distance(trip, sub_trip), count_stops(trip, sub_trip))
+    new_path = trip.path.sub(sub_trip.path[0], sub_trip.path)
+    new_trip = Trip.new(new_path, count_distance(trip, sub_trip), count_stops(trip, sub_trip) + 1)
 
-    valid_trips += [new_trip] if new_trip
-    valid_trips += do_round_trip(new_trip, sub_trip, max_distance, max_stops)
-
-    valid_trips
+    @valid_trips += [new_trip] if new_trip && @valid_trips.select { |t| t.path == new_path}.empty?
+    do_round_trip(new_trip, sub_trip, max_distance, max_stops)
   end
 
   def count_stops(trip, sub_trip)
-    trip.stops + sub_trip.stops
+    trip.stops + sub_trip.stops - 1
   end
 
   def count_distance(trip, sub_trip)
@@ -128,6 +125,6 @@ class Routes
   end
 
   def valid_round_trip(trip, sub_trip, max_distance, max_stops)
-    trip.path.include?(sub_trip.path) && (count_stops(trip, sub_trip) < max_stops || count_distance(trip, sub_trip) < max_distance)
+    trip.path.include?(sub_trip.path[0..-2]) && (count_stops(trip, sub_trip) < max_stops || count_distance(trip, sub_trip) < max_distance)
   end
 end
