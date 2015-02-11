@@ -1,10 +1,12 @@
 class Routes
+  attr_accessor :all_routes
+
   def initialize(routes)
-    @routes = []
+    @all_routes = []
     @all_trips = []
 
     routes.scan(/[a-zA-Z]{2}\d+/).each do |route|
-      @routes << Route.new(route[0], route[1], route[2..-1].to_i)
+      @all_routes << Route.new(route[0], route[1], route[2..-1].to_i)
     end
 
     find_all_trips
@@ -39,7 +41,7 @@ class Routes
       trip.path.start_with?(from) && trip.path.end_with?(to)
     end
 
-    trips ? trips.map(&:distance).min : NO_ROUTE
+    trips.empty? ? NO_ROUTE : trips.map(&:distance).min
   end
 
   def trips_with_less_distance(from, to, distance = 0)
@@ -53,7 +55,7 @@ class Routes
   private
 
   def find_all_trips
-    @routes.each do |route|
+    @all_routes.each do |route|
       # direct trips
       new_path      = route.from + route.to
       new_distance  = route.distance
@@ -69,7 +71,7 @@ class Routes
   end
 
   def find_other_trips(old_route, path, distance, stops)
-    old_route.connected_routes(@routes).each do |route|
+    old_route.connected_routes(@all_routes).each do |route|
       new_path      = path + route.to
       new_distance  = distance + route.distance
       new_stops     = stops + 1
